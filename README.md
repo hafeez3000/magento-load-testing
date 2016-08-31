@@ -43,6 +43,6 @@ The `json` report can be converted to a HTML report with:
 artillery report jsonfile.json
 ```
 
-## Contact
+## Documentation
 
-For any questions please contact Hassy Veldstra [<h@artillery.io>](mailto:h@artillery.io)
+For more details see [<http://artillery.io>](http://artillery.io)
