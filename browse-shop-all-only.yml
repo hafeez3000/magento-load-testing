@@ -1,0 +1,68 @@
+config:
+  target: "http://yourmagentotore.com"
+  timeout: 30
+  environments:
+    # This defines a load-level equivalent to that of a sale being live (6k users
+    # arriving in 1 hour)
+    Soak:
+      phases:
+        - duration: 3600
+          arrivalCount: 6000
+    # This is 100% of the target load for just 10 minutes.
+    Heavy:
+      phases:
+        - duration: 360
+          arrivalCount: 600
+    # This is 50% of the above load level and only running for 10 minutes.
+    Light:
+      phases:
+        - duration: 600
+          arrivalCount: 480
+    # 25% of sale load level for 10 minutes - start here.
+    Test:
+      phases:
+        - duration: 600
+          arrivalCount: 240
+  processor: "./functions.js"
+scenarios:
+  - name: "Window shopping"
+    flow:
+      - get:
+          url: "/"
+      - think: 1
+      - get:
+          url: "/shop"
+          think: 1
+      # Browse through several pages
+      - count: "1-10"
+        loop:
+          # Pick and load a couple of products
+          - get:
+              url: "/shop/shop-all?p={{ $loopCount }}"
+              capture:
+                selector: "a.product.photo.product-item-photo"
+                attr: "href"
+                index: "random"
+                as: "productUrl1"
+          - think: 1
+          - get:
+              url: "/shop/shop-all?p={{ $loopCount }}"
+              capture:
+                selector: "a.product.photo.product-item-photo"
+                attr: "href"
+                index: "random"
+                as: "productUrl2"
+          - think: 1
+          - get:
+              url: "/shop/shop-all?p={{ $loopCount }}"
+              capture:
+                selector: "a.product.photo.product-item-photo"
+                attr: "href"
+                index: "random"
+                as: "productUrl3"
+          - get:
+              url: "{{{ productUrl1 }}}"
+          - get:
+              url: "{{{ productUrl2 }}}"
+          - get:
+              url: "{{{ productUrl3 }}}"

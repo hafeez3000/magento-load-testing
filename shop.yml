@@ -1,0 +1,103 @@
+config:
+  target: "https://www.yourmagentostore.com"
+  phases:
+    - duration: 10
+      arrivalCount: 5
+  defaults:
+    headers:
+      user-agent: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_11_0) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.106 Safari/537.36"
+  processor: "./functions.js"
+  timeout: 30
+  tls:
+    rejectUnauthorized: false
+  environments:
+    # This defines a load-level equivalent to that of a sale being live (6k users
+    # arriving in 1 hour)
+    Soak:
+      phases:
+        - duration: 3600
+          arrivalCount: 6000
+    # This is 100% of the target load for just 10 minutes.
+    Heavy:
+      phases:
+        - duration: 360
+          arrivalCount: 600
+    # This is 50% of the above load level and only running for 10 minutes.
+    Light:
+      phases:
+        - duration: 600
+          arrivalCount: 480
+    # 25% of sale load level for 10 minutes - start here.
+    Test:
+      phases:
+        - duration: 600
+          arrivalCount: 240
+scenarios:
+  - name: "Browse and buy a few items - sequential shopper"
+    weight: 1
+    flow:
+      - count: "1-5"
+        loop:
+          - get:
+              url: "/shop/shop-all?p={{ $loopCount }}"
+              capture:
+                selector: "a.product.photo.product-item-photo"
+                attr: "href"
+                index: "random"
+                as: "productUrl"
+                transform: "this.productUrl.replace('http://', 'https://')"
+          - think: 5
+          - get:
+              url: "{{{ productUrl }}}"
+              # anAvailableSize should be set ONLY for products with attribute_id=157 for the form to work
+              afterResponse: "preparePurchase"
+          - think: 5
+          - post:
+              beforeRequest: "prepareAddCartCall"
+              probability: 50
+              ifTrue: "addToCartUrl"
+              url: "{{{ addToCartUrl }}}"
+              afterResponse: "printAddToCart"
+          - think: 1
+          - get:
+              url: "/checkout/cart"
+              probability: 80 # some people will abandon their carts
+              afterResponse: "printCart"
+  - name: "Browse only"
+    weight: 1
+    flow:
+      - count: "5-10"
+        loop:
+          - get:
+              url: "/shop/shop-all?p={{ $loopCount }}"
+              capture:
+                selector: "a.product.photo.product-item-photo"
+                attr: "href"
+                index: "random"
+                as: "productUrl"
+                transform: "this.productUrl.replace('http://', 'https://')"
+          - think: 5
+          - get:
+              url: "{{{ productUrl }}}"
+          - think: 5
+  # This scenario is handy for debugging:
+  # - name: "Debug"
+  #   afterResponse: "printCookie"
+  #   weight: 1
+  #   flow:
+  #     - get:
+  #         url: "/"
+  #     - get:
+  #         url: "/shop"
+  #     - get:
+  #         url: "/checkout/cart"
+  #     - get:
+  #         url: "/dress-with-shoulder-ties.html"
+  #         afterResponse: ["preparePurchase"]
+  #     - post:
+  #         url: "{{{ addToCartUrl }}}"
+  #         beforeRequest: "prepareAddCartCall"
+  #         afterResponse: "printAddToCart"
+  #     - get:
+  #         url: "/checkout/cart"
+  #         afterResponse: "printCart"
